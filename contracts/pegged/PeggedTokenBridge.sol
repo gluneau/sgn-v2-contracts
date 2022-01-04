@@ -30,7 +30,14 @@ contract PeggedTokenBridge is Pauser, VolumeControl, DelayedTransfer {
         bytes32 refId,
         address depositor
     );
-    event Burn(bytes32 burnId, address token, address account, uint256 amount, address withdrawAccount);
+    event Burn(
+        bytes32 burnId,
+        address token,
+        address account,
+        uint256 amount,
+        uint64 withdrawChainId,
+        address withdrawAccount
+    );
     event MinBurnUpdated(address token, uint256 amount);
     event MaxBurnUpdated(address token, uint256 amount);
 
@@ -88,29 +95,39 @@ contract PeggedTokenBridge is Pauser, VolumeControl, DelayedTransfer {
 
     /**
      * @notice Burn pegged tokens to trigger a cross-chain withdrawal of the original tokens at a remote chain's
-     * OriginalTokenVault.
+     * OriginalTokenVault, or mint at another remote chain
      * NOTE: This function DOES NOT SUPPORT fee-on-transfer / rebasing tokens.
      * @param _token The pegged token address.
      * @param _amount The amount to burn.
-     * @param _withdrawAccount The account to receive the original tokens withdrawn on the remote chain.
+     * @param _withdrawChainId If zero, withdraw original tokens; otherwise, the remote chain to mint tokens.
+     * @param _withdrawAccount The account to receive tokens on the remote chain
      * @param _nonce A number to guarantee unique depositId. Can be timestamp in practice.
      */
     function burn(
         address _token,
         uint256 _amount,
+        uint64 _withdrawChainId,
         address _withdrawAccount,
         uint64 _nonce
     ) external whenNotPaused {
         require(_amount > minBurn[_token], "amount too small");
         require(maxBurn[_token] == 0 || _amount <= maxBurn[_token], "amount too large");
         bytes32 burnId = keccak256(
-            // len = 20 + 20 + 32 + 20 + 8 + 8 = 108
-            abi.encodePacked(msg.sender, _token, _amount, _withdrawAccount, _nonce, uint64(block.chainid))
+            // len = 20 + 20 + 32 + 8 + 20 + 8 + 8 = 116
+            abi.encodePacked(
+                msg.sender,
+                _token,
+                _amount,
+                _withdrawChainId,
+                _withdrawAccount,
+                _nonce,
+                uint64(block.chainid)
+            )
         );
         require(records[burnId] == false, "record exists");
         records[burnId] = true;
         IPeggedToken(_token).burn(msg.sender, _amount);
-        emit Burn(burnId, _token, msg.sender, _amount, _withdrawAccount);
+        emit Burn(burnId, _token, msg.sender, _amount, _withdrawChainId, _withdrawAccount);
     }
 
     function executeDelayedTransfer(bytes32 id) external whenNotPaused {
