@@ -58,7 +58,7 @@ contract PeggedTokenBridge is Pauser, VolumeControl, DelayedTransfer {
         bytes[] calldata _sigs,
         address[] calldata _signers,
         uint256[] calldata _powers
-    ) external whenNotPaused {
+    ) external whenNotPaused returns (bytes32) {
         bytes32 domain = keccak256(abi.encodePacked(block.chainid, address(this), "Mint"));
         sigsVerifier.verifySigs(abi.encodePacked(domain, _request), _sigs, _signers, _powers);
         PbPegged.Mint memory request = PbPegged.decMint(_request);
@@ -91,6 +91,7 @@ contract PeggedTokenBridge is Pauser, VolumeControl, DelayedTransfer {
             request.refId,
             request.depositor
         );
+        return mintId;
     }
 
     /**
@@ -109,25 +110,18 @@ contract PeggedTokenBridge is Pauser, VolumeControl, DelayedTransfer {
         uint64 _withdrawChainId,
         address _withdrawAccount,
         uint64 _nonce
-    ) external whenNotPaused {
+    ) external whenNotPaused returns (bytes32) {
         require(_amount > minBurn[_token], "amount too small");
         require(maxBurn[_token] == 0 || _amount <= maxBurn[_token], "amount too large");
         bytes32 burnId = keccak256(
-            // len = 20 + 20 + 32 + 8 + 20 + 8 + 8 = 116
-            abi.encodePacked(
-                msg.sender,
-                _token,
-                _amount,
-                _withdrawChainId,
-                _withdrawAccount,
-                _nonce,
-                uint64(block.chainid)
-            )
+            // len = 20 + 20 + 32 + 20 + 8 + 8 = 108
+            abi.encodePacked(msg.sender, _token, _amount, _withdrawAccount, _nonce, uint64(block.chainid))
         );
         require(records[burnId] == false, "record exists");
         records[burnId] = true;
         IPeggedToken(_token).burn(msg.sender, _amount);
         emit Burn(burnId, _token, msg.sender, _amount, _withdrawChainId, _withdrawAccount);
+        return burnId;
     }
 
     function executeDelayedTransfer(bytes32 id) external whenNotPaused {
