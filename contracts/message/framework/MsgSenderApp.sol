@@ -33,6 +33,18 @@ abstract contract MsgSenderApp is MsgBusAddr {
         MessageBus(msgBus).sendMessage(_receiver, _dstChainId, _message);
     }
 
+    /**
+     * @notice Sends a cross-chain transfer via either the liquidity pool-based bridge or the pegged token bridge along with the message
+     * @param _receiver the app contract that implements the MessageReceiver abstract contract
+     *        NOTE not to be confused with the receiver field in SwapInfo which is an EOA address of a user
+     * @param _token the token to bridge
+     * @param _amount the amount of tokens to bridge
+     * @param _dstChainId destination chain ID
+     * @param _maxSlippage the max acceptable slippage at bridge, given as percentage in point (pip). Eg. 5000 means 0.5%.
+     *        Must be greater than minimalMaxSlippage. Receiver is guaranteed to receive at least (100% - max slippage percentage) * amount or the
+     *        transfer can be refunded.
+     * @param _message arbitrary message bytes to be relayed the destination app contract
+     */
     function sendMessageWithTransfer(
         address _receiver,
         address _token,
