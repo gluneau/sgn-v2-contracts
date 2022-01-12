@@ -96,6 +96,7 @@ abstract contract MsgSenderApp is MsgBusAddr {
             IERC20(_token).safeIncreaseAllowance(liquidityBridge, _amount);
             IBridge(liquidityBridge).send(_receiver, _token, _amount, _dstChainId, _nonce, _maxSlippage);
         } else if (bt == BridgeType.PegDeposit) {
+            IERC20(_token).safeIncreaseAllowance(pegVault, _amount);
             IBridge(pegVault).deposit(_token, _amount, _dstChainId, _receiver, _nonce);
         } else if (bt == BridgeType.PegBurn) {
             IBridge(pegBridge).burn(_token, _amount, _receiver, _nonce);
