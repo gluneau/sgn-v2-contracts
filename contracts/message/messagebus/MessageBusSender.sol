@@ -5,7 +5,7 @@ pragma solidity 0.8.9;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../../interfaces/ISigsVerifier.sol";
 
-contract MessageSender is Ownable {
+contract MessageBusSender is Ownable {
     ISigsVerifier public immutable sigsVerifier;
 
     uint256 public feeBase;
@@ -39,7 +39,7 @@ contract MessageSender is Ownable {
     function sendMessageWithTransfer(
         address _receiver,
         uint256 _dstChainId,
-        address _bridge,
+        address _srcBridge,
         bytes32 _srcTransferId,
         bytes calldata _message
     ) external payable {
@@ -48,7 +48,7 @@ contract MessageSender is Ownable {
         // 1. msg.sender matches sender of the src transfer
         // 2. dstChainId matches dstChainId of the src transfer
         // 3. bridge is either liquidity bridge, peg src vault, or peg dst bridge
-        emit MessageWithTransfer(msg.sender, _receiver, _dstChainId, _bridge, _srcTransferId, _message);
+        emit MessageWithTransfer(msg.sender, _receiver, _dstChainId, _srcBridge, _srcTransferId, _message);
     }
 
     function withdrawFee(
@@ -65,6 +65,12 @@ contract MessageSender is Ownable {
         (bool sent, ) = _account.call{value: amount, gas: 50000}("");
         require(sent, "failed to withdraw fee");
     }
+
+    function calcFee(bytes calldata _message) public view returns (uint256) {
+        return feeBase + _message.length * feePerByte;
+    }
+
+    // -------------------- Admin --------------------
 
     function setFeePerByte(uint256 _fee) external onlyOwner {
         feePerByte = _fee;
